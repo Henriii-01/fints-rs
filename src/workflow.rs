@@ -12,6 +12,9 @@ use crate::banks::BankConfig;
 use crate::error::{FinTSError, Result};
 use crate::protocol::*;
 use crate::types::*;
+use crate::workflow::ing::Ing;
+
+mod ing;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Workflow result types
@@ -482,8 +485,10 @@ impl BankOps for GenericBank {
 ///
 /// New banks are added here as enum variants. This avoids `Box<dyn BankOps>`
 /// which is incompatible with native async fn in traits.
+
 pub enum AnyBank {
     Dkb(Dkb),
+    Ing(Ing),
     Generic(GenericBank),
 }
 
@@ -491,6 +496,7 @@ impl AnyBank {
     pub fn config(&self) -> &BankConfig {
         match self {
             AnyBank::Dkb(b) => b.config(),
+            AnyBank::Ing(b) => b.config(),
             AnyBank::Generic(b) => b.config(),
         }
     }
@@ -506,6 +512,7 @@ impl AnyBank {
     ) -> Result<InitiateOutcome> {
         match self {
             AnyBank::Dkb(b) => b.initiate(username, pin, product_id, system_id, target_iban, target_bic).await,
+            AnyBank::Ing(b) => b.initiate(username, pin, product_id, system_id, target_iban, target_bic).await,
             AnyBank::Generic(b) => b.initiate(username, pin, product_id, system_id, target_iban, target_bic).await,
         }
     }
@@ -518,6 +525,7 @@ impl AnyBank {
     ) -> Result<FetchResult> {
         match self {
             AnyBank::Dkb(b) => b.fetch(dialog, account, days).await,
+            AnyBank::Ing(b) => b.fetch(dialog, account, days).await,
             AnyBank::Generic(b) => b.fetch(dialog, account, days).await,
         }
     }
@@ -529,6 +537,7 @@ impl AnyBank {
     ) -> Result<Vec<SecurityHolding>> {
         match self {
             AnyBank::Dkb(b) => b.fetch_holdings(dialog, account).await,
+            AnyBank::Ing(b) => b.fetch_holdings(dialog, account).await,
             AnyBank::Generic(b) => b.fetch_holdings(dialog, account).await,
         }
     }
@@ -584,6 +593,7 @@ pub fn bank_ops(blz: &str) -> Result<AnyBank> {
         .ok_or_else(|| FinTSError::Dialog(format!("Unknown BLZ: {}", blz)))?;
     match blz {
         "12030000" => Ok(AnyBank::Dkb(Dkb::new())),
+        "50010517" => Ok(AnyBank::Ing(Ing::new(config))),
         _ => Ok(AnyBank::Generic(GenericBank::new(config))),
     }
 }
